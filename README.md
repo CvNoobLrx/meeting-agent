@@ -10,9 +10,6 @@
 - **Web框架**: FastAPI + WebSocket
 - **集成**: Jira Cloud API + 飞书 Open API
 
-
-安装完成后请确认：`ffmpeg -version`
-
 ## 快速开始
 
 ```bash
