@@ -23,7 +23,7 @@ from ..models.schemas import MeetingStatus
 
 app = FastAPI(
     title="多Agent智能会议助手",
-    description="企业级5-Agent会议全流程自动化系统",
+    description="Agent会议全流程自动化系统",
     version="1.0.0",
 )
 

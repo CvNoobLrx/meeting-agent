@@ -33,7 +33,13 @@ class JiraClient:
         self.api_token = api_token or os.getenv("JIRA_API_TOKEN", "")
         self.project_key = project_key or os.getenv("JIRA_PROJECT_KEY", "MEET")
         self._jira = None
-        self._enabled = bool(self.server and self.email and self.api_token)
+        placeholders = ("your-", "your_", "your", "example", "company.com")
+        is_placeholder = (
+            any(p in self.server.lower() for p in placeholders)
+            or any(p in self.email.lower() for p in placeholders)
+            or any(p in self.api_token.lower() for p in placeholders)
+        )
+        self._enabled = bool(self.server and self.email and self.api_token and not is_placeholder)
 
     def _get_client(self):
         """懒加载 Jira 客户端"""

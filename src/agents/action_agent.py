@@ -15,7 +15,7 @@ from loguru import logger
 
 from ..integrations.feishu_client import FeishuClient
 from ..integrations.jira_client import JiraClient
-from ..integrations.minimax_client import MiniMaxClient
+from ..integrations.zhipu_client import ZhipuAIClient
 from ..models.schemas import ActionItem, ActionResult, Priority
 
 
@@ -73,11 +73,11 @@ class ActionAgent:
 
     def __init__(
         self,
-        llm_client: MiniMaxClient | None = None,
+        llm_client: ZhipuAIClient | None = None,
         jira_client: JiraClient | None = None,
         feishu_client: FeishuClient | None = None,
     ):
-        self.llm = llm_client or MiniMaxClient()
+        self.llm = llm_client or ZhipuAIClient()
         self.jira = jira_client or JiraClient()
         self.feishu = feishu_client or FeishuClient()
 
@@ -143,12 +143,18 @@ class ActionAgent:
             max_tokens=2048,
         )
 
+        if isinstance(result, dict) and result.get("error"):
+            raise RuntimeError(f"LLM action extraction failed: {result.get('error')}")
+
         items = []
         for raw in result.get("action_items", []):
             priority_str = raw.get("priority", "medium").lower()
             try:
-                priority = Priority(priority_str)
+                # Support both enum name (MEDIUM) and value (Medium/medium)
+                priority = Priority[priority_str.upper()]
             except ValueError:
+                priority = Priority.MEDIUM
+            except KeyError:
                 priority = Priority.MEDIUM
 
             items.append(

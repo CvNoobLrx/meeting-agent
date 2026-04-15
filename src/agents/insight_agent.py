@@ -14,7 +14,7 @@ from typing import Any
 
 from loguru import logger
 
-from ..integrations.minimax_client import MiniMaxClient
+from ..integrations.zhipu_client import ZhipuAIClient
 from ..models.schemas import (
     MeetingInsight,
     SentimentType,
@@ -68,8 +68,8 @@ class InsightAgent:
     - 情绪分析的准确率如何保证？（LLM few-shot + 置信度阈值）
     """
 
-    def __init__(self, llm_client: MiniMaxClient | None = None):
-        self.llm = llm_client or MiniMaxClient()
+    def __init__(self, llm_client: ZhipuAIClient | None = None):
+        self.llm = llm_client or ZhipuAIClient()
 
     async def process(self, state: dict) -> dict:
         """
@@ -208,6 +208,9 @@ class InsightAgent:
             temperature=0.3,
             max_tokens=2048,
         )
+
+        if isinstance(result, dict) and result.get("error"):
+            raise RuntimeError(f"LLM insight analysis failed: {result.get('error')}")
 
         sentiment_str = result.get("overall_sentiment", "neutral").lower()
         try:

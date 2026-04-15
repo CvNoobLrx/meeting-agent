@@ -37,8 +37,14 @@ class FeishuClient:
         self._client = httpx.AsyncClient(timeout=30.0)
         self._tenant_token: str = ""
         self._token_expires_at: float = 0
+        placeholders = ("your-", "your_", "your", "example", "webhook_token")
+        has_placeholder = (
+            any(p in self.app_id.lower() for p in placeholders)
+            or any(p in self.app_secret.lower() for p in placeholders)
+            or any(p in self.webhook_url.lower() for p in placeholders)
+        )
         self._enabled = bool(
-            (self.app_id and self.app_secret) or self.webhook_url
+            ((self.app_id and self.app_secret) or self.webhook_url) and not has_placeholder
         )
 
     @property

@@ -41,6 +41,7 @@ LangGraph 会议处理图 —— 多Agent编排核心
 from __future__ import annotations
 
 import asyncio
+from operator import add
 from typing import Any, TypedDict, Annotated
 
 from langgraph.graph import StateGraph, START, END
@@ -51,7 +52,7 @@ from ..agents.summary_agent import SummaryAgent
 from ..agents.action_agent import ActionAgent
 from ..agents.insight_agent import InsightAgent
 from ..agents.followup_agent import FollowUpAgent
-from ..integrations.minimax_client import MiniMaxClient
+from ..integrations.zhipu_client import ZhipuAIClient
 from ..integrations.jira_client import JiraClient
 from ..integrations.feishu_client import FeishuClient
 from ..models.schemas import (
@@ -87,7 +88,7 @@ class GraphState(TypedDict, total=False):
     followup: Any
 
     # 错误记录
-    errors: list[str]
+    errors: Annotated[list[str], add]
 
 
 # ============================================================
@@ -95,7 +96,7 @@ class GraphState(TypedDict, total=False):
 # ============================================================
 
 def build_meeting_graph(
-    llm_client: MiniMaxClient | None = None,
+    llm_client: ZhipuAIClient | None = None,
     jira_client: JiraClient | None = None,
     feishu_client: FeishuClient | None = None,
     transcription_config: TranscriptionConfig | None = None,
@@ -119,7 +120,7 @@ def build_meeting_graph(
         编译后的 StateGraph
     """
     # 共享依赖
-    llm = llm_client or MiniMaxClient()
+    llm = llm_client or ZhipuAIClient()
     jira = jira_client or JiraClient()
     feishu = feishu_client or FeishuClient()
 
@@ -130,15 +131,67 @@ def build_meeting_graph(
     insight_agent = InsightAgent(llm)
     followup_agent = FollowUpAgent(feishu)
 
+    async def _run_transcription(state: GraphState) -> GraphState:
+        prev_errors = state.get("errors", [])
+        updated = await transcription_agent.process(dict(state))
+        delta: GraphState = {
+            "status": updated.get("status"),
+            "transcript": updated.get("transcript"),
+            "transcript_text": updated.get("transcript_text", ""),
+        }
+        new_errors = updated.get("errors", [])[len(prev_errors):]
+        if new_errors:
+            delta["errors"] = new_errors
+        return delta
+
+    async def _run_summary(state: GraphState) -> GraphState:
+        prev_errors = state.get("errors", [])
+        updated = await summary_agent.process(dict(state))
+        delta: GraphState = {"summary": updated.get("summary")}
+        new_errors = updated.get("errors", [])[len(prev_errors):]
+        if new_errors:
+            delta["errors"] = new_errors
+        return delta
+
+    async def _run_action(state: GraphState) -> GraphState:
+        prev_errors = state.get("errors", [])
+        updated = await action_agent.process(dict(state))
+        delta: GraphState = {"actions": updated.get("actions")}
+        new_errors = updated.get("errors", [])[len(prev_errors):]
+        if new_errors:
+            delta["errors"] = new_errors
+        return delta
+
+    async def _run_insight(state: GraphState) -> GraphState:
+        prev_errors = state.get("errors", [])
+        updated = await insight_agent.process(dict(state))
+        delta: GraphState = {"insights": updated.get("insights")}
+        new_errors = updated.get("errors", [])[len(prev_errors):]
+        if new_errors:
+            delta["errors"] = new_errors
+        return delta
+
+    async def _run_followup(state: GraphState) -> GraphState:
+        prev_errors = state.get("errors", [])
+        updated = await followup_agent.process(dict(state))
+        delta: GraphState = {
+            "followup": updated.get("followup"),
+            "status": updated.get("status"),
+        }
+        new_errors = updated.get("errors", [])[len(prev_errors):]
+        if new_errors:
+            delta["errors"] = new_errors
+        return delta
+
     # ---- 构建 StateGraph ----
     graph = StateGraph(GraphState)
 
     # 注册节点（Node = Agent）
-    graph.add_node("transcription", transcription_agent.process)
-    graph.add_node("summary", summary_agent.process)
-    graph.add_node("action", action_agent.process)
-    graph.add_node("insight", insight_agent.process)
-    graph.add_node("followup", followup_agent.process)
+    graph.add_node("transcription", _run_transcription)
+    graph.add_node("summary", _run_summary)
+    graph.add_node("action", _run_action)
+    graph.add_node("insight", _run_insight)
+    graph.add_node("followup", _run_followup)
 
     # ---- 定义边（Edge = 流转关系）----
 
