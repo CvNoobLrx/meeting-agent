@@ -10,13 +10,6 @@
 - **Web框架**: FastAPI + WebSocket
 - **集成**: Jira Cloud API + 飞书 Open API
 
-## 运行前提
-
-在安装 Python 依赖前，请先安装系统级 `ffmpeg`（FunASR 音频解码依赖）：
-
-- Windows: `winget install Gyan.FFmpeg`
-- macOS: `brew install ffmpeg`
-- Ubuntu/Debian: `sudo apt-get install -y ffmpeg`
 
 安装完成后请确认：`ffmpeg -version`
 
@@ -39,8 +32,6 @@ python -m src.main
 # 4. 测试演示模式（无需音频）
 curl -X POST http://localhost:8000/api/v1/meeting/demo/demo
 
-# 5. 测试上传音频
-curl -X POST "http://localhost:8000/api/v1/meeting/demo/upload" -F "file=@./zh.wav"
 ```
 
 如果你是 CPU 环境，在 `.env` 中设置：`ASR_DEVICE=cpu`
@@ -66,6 +57,7 @@ python/
 │   │   └── meeting_graph.py         # LangGraph 编排核心
 │   ├── integrations/
 │   │   ├── zhipu_client.py          # ZhipuAI LLM 客户端
+│   │   ├── minimax_client.py        # minimax LLM 客户端
 │   │   ├── jira_client.py           # Jira Cloud 集成
 │   │   └── feishu_client.py         # 飞书 Open API 集成
 │   ├── models/
