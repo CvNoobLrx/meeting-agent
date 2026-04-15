@@ -63,6 +63,10 @@ docker-compose.override.yml
 *.onnx
 models/
 
+# Local audio test artifacts
+*.wav
+*.mp3
+
 # OS
 .DS_Store
 .Spotlight-V100
